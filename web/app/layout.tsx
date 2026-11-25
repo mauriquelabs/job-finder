@@ -16,7 +16,8 @@ const mono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "CV proof",
-  description: "Choose a saved CV or paste markdown, preview the A4 page, and download the PDF.",
+  description:
+    "Choose a saved CV or paste markdown, preview the A4 page, save changes, and download the PDF.",
 };
 
 export default function RootLayout({

@@ -12,25 +12,76 @@ type CvDocPayload = {
   error?: string;
 };
 
+type SavePayload = {
+  id?: string;
+  label?: string;
+  error?: string;
+};
+
 export type SavedCv = {
   id: string;
   label: string;
 };
 
-export function ProofStudio({ documents }: { documents: SavedCv[] }) {
+export type SaveMode = "open" | "secret";
+
+const SAVE_SECRET_KEY = "cv-save-secret";
+
+function readStoredSecret(): string {
+  try {
+    return sessionStorage.getItem(SAVE_SECRET_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function storeSecret(secret: string): void {
+  try {
+    sessionStorage.setItem(SAVE_SECRET_KEY, secret);
+  } catch {
+    // sessionStorage may be unavailable; request still carries the header once.
+  }
+}
+
+export function ProofStudio({
+  documents: initialDocuments,
+  saveMode,
+}: {
+  documents: SavedCv[];
+  saveMode: SaveMode;
+}) {
   const editorId = useId();
   const libraryId = useId();
+  const roleId = useId();
+  const secretId = useId();
+  const [documents, setDocuments] = useState(initialDocuments);
   const [markdown, setMarkdown] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [roleLabel, setRoleLabel] = useState("");
+  const [saveSecret, setSaveSecret] = useState("");
   const [loadingDoc, setLoadingDoc] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const previewGeneration = useRef(0);
   const docGeneration = useRef(0);
   const stageRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const canDownload = markdown.trim().length > 0 && !downloading;
+  const creating = selectedId.length === 0;
+  const canSave =
+    markdown.trim().length > 0 &&
+    !saving &&
+    !loadingDoc &&
+    (!creating || roleLabel.trim().length > 0);
+
+  useEffect(() => {
+    if (saveMode === "secret") {
+      setSaveSecret(readStoredSecret());
+    }
+  }, [saveMode]);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -108,10 +159,23 @@ export function ProofStudio({ documents }: { documents: SavedCv[] }) {
     return () => window.clearTimeout(timer);
   }, [markdown]);
 
+  function authHeaders(): HeadersInit {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (saveMode === "secret" && saveSecret.trim().length > 0) {
+      headers.Authorization = `Bearer ${saveSecret.trim()}`;
+    }
+
+    return headers;
+  }
+
   async function chooseDocument(id: string) {
     const generation = docGeneration.current + 1;
     docGeneration.current = generation;
     setSelectedId(id);
+    setStatus(null);
 
     if (id.length === 0) {
       setLoadingDoc(false);
@@ -135,6 +199,7 @@ export function ProofStudio({ documents }: { documents: SavedCv[] }) {
       }
 
       setMarkdown(payload.markdown);
+      setRoleLabel("");
     } catch {
       if (generation !== docGeneration.current) {
         return;
@@ -145,6 +210,70 @@ export function ProofStudio({ documents }: { documents: SavedCv[] }) {
       if (generation === docGeneration.current) {
         setLoadingDoc(false);
       }
+    }
+  }
+
+  async function saveDocument() {
+    if (!canSave) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setStatus(null);
+
+    if (saveMode === "secret" && saveSecret.trim().length > 0) {
+      storeSecret(saveSecret.trim());
+    }
+
+    try {
+      if (creating) {
+        const response = await fetch("/api/cv-docs", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ role: roleLabel.trim(), markdown }),
+        });
+        const payload = (await response.json()) as SavePayload;
+
+        if (!response.ok || typeof payload.id !== "string" || typeof payload.label !== "string") {
+          setError(payload.error ?? "The CV could not be saved. Try again.");
+          return;
+        }
+
+        const saved: SavedCv = { id: payload.id, label: payload.label };
+
+        setDocuments((current) => {
+          const next = current.filter((doc) => doc.id !== saved.id);
+          next.push(saved);
+          next.sort((left, right) => {
+            const byLabel = left.label.localeCompare(right.label);
+            return byLabel === 0 ? left.id.localeCompare(right.id) : byLabel;
+          });
+          return next;
+        });
+        setSelectedId(saved.id);
+        setRoleLabel("");
+        setStatus(`Saved ${saved.label}`);
+        return;
+      }
+
+      const response = await fetch(`/api/cv-docs/${encodeURIComponent(selectedId)}`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ markdown }),
+      });
+      const payload = (await response.json()) as SavePayload;
+
+      if (!response.ok || typeof payload.id !== "string") {
+        setError(payload.error ?? "The CV could not be saved. Try again.");
+        return;
+      }
+
+      setStatus(`Saved ${payload.label ?? selectedId}`);
+    } catch {
+      setError("The save request did not complete. Try again.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -197,6 +326,17 @@ export function ProofStudio({ documents }: { documents: SavedCv[] }) {
         </div>
         <div className="masthead-actions">
           {error ? <p className="error">{error}</p> : null}
+          {!error && status ? <p className="status">{status}</p> : null}
+          <button
+            type="button"
+            className="secondary"
+            disabled={!canSave}
+            onClick={() => {
+              void saveDocument();
+            }}
+          >
+            {saving ? "Saving" : creating ? "Save as new" : "Save"}
+          </button>
           <button
             type="button"
             className="download"
@@ -224,12 +364,12 @@ export function ProofStudio({ documents }: { documents: SavedCv[] }) {
               <select
                 id={libraryId}
                 value={selectedId}
-                disabled={loadingDoc}
+                disabled={loadingDoc || saving}
                 onChange={(event) => {
                   void chooseDocument(event.target.value);
                 }}
               >
-                <option value="">Choose a file</option>
+                <option value="">New CV</option>
                 {documents.map((document) => (
                   <option key={document.id} value={document.id}>
                     {document.label}
@@ -238,12 +378,46 @@ export function ProofStudio({ documents }: { documents: SavedCv[] }) {
               </select>
             </div>
           ) : null}
+          {creating ? (
+            <div className="field">
+              <label htmlFor={roleId}>Role label</label>
+              <input
+                id={roleId}
+                type="text"
+                value={roleLabel}
+                disabled={saving}
+                onChange={(event) => setRoleLabel(event.target.value)}
+                placeholder="Senior Frontend Engineer"
+                autoComplete="off"
+              />
+              <p className="field-hint">
+                Saves as Daniel_Sierra_&lt;Role&gt;_CV.md
+              </p>
+            </div>
+          ) : null}
+          {saveMode === "secret" ? (
+            <div className="field">
+              <label htmlFor={secretId}>Save secret</label>
+              <input
+                id={secretId}
+                type="password"
+                value={saveSecret}
+                disabled={saving}
+                onChange={(event) => setSaveSecret(event.target.value)}
+                placeholder="Required on this host"
+                autoComplete="current-password"
+              />
+            </div>
+          ) : null}
           <div className="field editor-field">
             <label htmlFor={editorId}>Markdown</label>
             <textarea
               id={editorId}
               value={markdown}
-              onChange={(event) => setMarkdown(event.target.value)}
+              onChange={(event) => {
+                setMarkdown(event.target.value);
+                setStatus(null);
+              }}
               spellCheck={false}
               placeholder="# Your name"
             />

@@ -2,7 +2,7 @@
 
 Job finder automates a job search. Connect an inbox and job-board sources; it collects listings, scores them against your match policy, and keeps a shortlist. It also turns markdown CVs into the A4 PDF you send.
 
-The first connector is Gmail. Alert mail from the boards in `data/sources/job-boards.json` is parsed, scored against `data/match-policy.json`, and written to `data/recommended-jobs.json`. A run is `pnpm poll-email`, by hand or from n8n on this Mac. The public site proofs a CV: paste markdown, preview the A4 page, and download the PDF. Boards with no email channel are listed and not searched yet.
+The first connector is Gmail. Alert mail from the boards in `data/sources/job-boards.json` is parsed, scored against `data/match-policy.json`, and written to `data/recommended-jobs.json`. A run is `pnpm poll-email`, by hand or from n8n on this Mac. The public site proofs a CV: paste or edit markdown, preview the A4 page, save into `data/cv/docs/` (local always; Fly needs `CV_SAVE_SECRET`), and download the PDF. Boards with no email channel are listed and not searched yet.
 
 ## Requirements
 
@@ -66,7 +66,7 @@ Gmail access is `gmail.readonly`. Processed message ids are stored locally. The 
 
 ## CV proof
 
-`web/` is a Next.js app. Paste markdown, preview the A4 document, or load one of the files in `data/cv/docs/` and download the PDF. Preview and PDF use the same document builder in `src/cv/`. Pasted text is not stored. Request bodies are capped at 200 KB.
+`web/` is a Next.js app. Paste markdown, preview the A4 document, load one of the files in `data/cv/docs/`, save edits (overwrite) or Save as new with a role label (`Daniel_Sierra_<Role>_CV.md`), and download the PDF. Preview and PDF use the same document builder in `src/cv/`. Request bodies are capped at 200 KB. Local `pnpm dev` can write the docs folder; on Fly, Save requires `CV_SAVE_SECRET` as `Authorization: Bearer …` (Fly disk is still ephemeral across deploys).
 
 Local:
 

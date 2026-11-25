@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   markdownBodyTooLarge,
   MAX_MARKDOWN_BYTES,
+  parseCreateCvRequest,
   parseMarkdownRequest,
   pdfFromMarkdown,
   previewFromMarkdown,
@@ -51,6 +52,38 @@ describe("parseMarkdownRequest", () => {
       status: 413,
       message: "Markdown is larger than 200 KB.",
     });
+  });
+});
+
+describe("parseCreateCvRequest", () => {
+  it("reads role and markdown", () => {
+    assert.deepEqual(
+      parseCreateCvRequest(
+        JSON.stringify({ role: " FDE ", markdown: "# Daniel\n" }),
+      ),
+      { ok: true, role: "FDE", markdown: "# Daniel\n" },
+    );
+  });
+
+  it("rejects a missing or blank role", () => {
+    assert.deepEqual(
+      parseCreateCvRequest(JSON.stringify({ markdown: "# Daniel\n" })),
+      {
+        ok: false,
+        status: 400,
+        message: "Send JSON with a role and markdown field.",
+      },
+    );
+    assert.deepEqual(
+      parseCreateCvRequest(
+        JSON.stringify({ role: "  ", markdown: "# Daniel\n" }),
+      ),
+      {
+        ok: false,
+        status: 400,
+        message: "Enter a short role label for the new CV.",
+      },
+    );
   });
 });
 

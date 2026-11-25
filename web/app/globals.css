@@ -30,7 +30,8 @@ body {
 
 button,
 textarea,
-select {
+select,
+input {
   font: inherit;
 }
 
@@ -75,33 +76,56 @@ h1 {
   min-width: 0;
 }
 
-.error {
+.error,
+.status {
   margin: 0;
   max-width: 36ch;
-  color: var(--register);
   font-size: 13px;
   line-height: 1.35;
   text-align: right;
 }
 
-.download {
+.error {
+  color: var(--register);
+}
+
+.status {
+  color: var(--muted);
+}
+
+.download,
+.secondary {
   flex: none;
   padding: 9px 16px;
-  border: 1px solid var(--register);
   border-radius: 0;
-  background: var(--register);
-  color: var(--paper);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
   cursor: pointer;
 }
 
+.download {
+  border: 1px solid var(--register);
+  background: var(--register);
+  color: var(--paper);
+}
+
+.secondary {
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+}
+
 .download:hover:not(:disabled) {
   background: color-mix(in srgb, var(--register) 88%, black);
 }
 
-.download:disabled {
+.secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.download:disabled,
+.secondary:disabled {
   border-color: var(--hairline);
   background: color-mix(in srgb, var(--hairline) 55%, var(--ground));
   color: var(--muted);
@@ -109,8 +133,10 @@ h1 {
 }
 
 .download:focus-visible,
+.secondary:focus-visible,
 textarea:focus-visible,
-select:focus-visible {
+select:focus-visible,
+input:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
@@ -128,13 +154,10 @@ select:focus-visible {
 }
 
 .manuscript {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 16px;
-}
-
-.manuscript.has-library {
-  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
 }
 
 .field {
@@ -150,7 +173,15 @@ select:focus-visible {
   gap: 12px;
 }
 
+.field-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .editor-field {
+  flex: 1 1 auto;
   grid-template-rows: auto minmax(0, 1fr);
 }
 
@@ -163,7 +194,9 @@ select:focus-visible {
   text-transform: uppercase;
 }
 
-select {
+select,
+input[type="text"],
+input[type="password"] {
   width: 100%;
   padding: 9px 12px;
   border: 1px solid var(--hairline);
@@ -173,7 +206,8 @@ select {
   font-size: 14px;
 }
 
-select:disabled {
+select:disabled,
+input:disabled {
   color: var(--muted);
 }
 
@@ -308,7 +342,8 @@ textarea {
     align-items: stretch;
   }
 
-  .error {
+  .error,
+  .status {
     max-width: none;
     text-align: left;
   }

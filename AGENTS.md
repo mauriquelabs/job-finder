@@ -67,4 +67,4 @@ Fly.io: `fly.toml` and the Dockerfile are the deploy config. One shared 1 GB mac
 - Do not log full email bodies, access tokens, or pasted CV markdown
 - Treat `data/recommended-jobs.json` as personal data; do not publish it
 - Keep n8n data in the local user folder (`~/.n8n`); do not commit it
-- The CV site is public. Cap request bodies at 200 KB, reject empty markdown, and do not persist pasted text
+- The CV site is public. Cap request bodies at 200 KB, reject empty markdown, and do not persist pasted text on Fly without auth. Local `pnpm dev` may Save into `data/cv/docs/`. On Fly, Save requires `CV_SAVE_SECRET` as `Authorization: Bearer …` (writes are still ephemeral on the machine image).

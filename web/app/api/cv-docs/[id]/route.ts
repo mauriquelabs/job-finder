@@ -3,6 +3,7 @@ import {
   readCvDoc,
   resolveCvDocsDir,
 } from "../../../../../src/cv/library";
+import { handleUpdateCvDoc } from "../../../../../src/cv/docs-route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,4 +39,12 @@ export async function GET(
     { markdown: result.markdown },
     { headers: { "Cache-Control": "no-store" } },
   );
+}
+
+export async function PUT(
+  request: Request,
+  context: RouteContext,
+): Promise<Response> {
+  const { id } = await context.params;
+  return handleUpdateCvDoc(request, id);
 }
